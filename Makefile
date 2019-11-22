@@ -14,7 +14,7 @@ OBJTS = tents.obj
 	$(RLINK) -o $*.out $*.obj
 
 tents.out:	$(OBJTS)
-	$(RLINK) -m -o tents.out $(OBJTS)
+	$(RLINK) -m -o tents.out $(OBJTS) > tents.map
 
 run:	tents.out
 	$(RSIM) tents.out
