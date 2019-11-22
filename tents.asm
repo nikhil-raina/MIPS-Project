@@ -48,34 +48,36 @@ horizontal_grid_plus:
 vertical_grid_bar:
     .asciiz " | "
 
-
 banner_heading:
-    .asciiz "******************"    
+    .asciiz "******************\n"    
 
-print_banner:
-    .asciiz "**     TENTS    **"
+print_banner_name:
+    .asciiz "**     TENTS    **\n"
 
 
 initial_puzzle_heading:
-    .asciiz "Initial Puzzle"
+    .asciiz "Initial Puzzle\n"
 
 final_puzzle_heading:
-    .asciiz "Final Puzzle"
+    .asciiz "Final Puzzle\n"
 
 newLine:
 	.asciiz "\n"
 
+space:
+    .asciiz " "
+
 err_impossible_message:
-    .asciiz "Impossible Puzzle"
+    .asciiz "Impossible Puzzle\n"
 
 err_invalid_board_size:
-    .asciiz "Invalid board size, Tents terminating"
+    .asciiz "Invalid board size, Tents terminating\n"
 
 err_sum_value:
-    .asciiz "Illegal sum value, Tents terminating"
+    .asciiz "Illegal sum value, Tents terminating\n"
 
 err_board_char:
-    .asciiz "Illegal board character, Tents terminating"
+    .asciiz "Illegal board character, Tents terminating\n"
 
 
     .text
@@ -104,21 +106,9 @@ main:
 
 
 #
-#   Prints the banner 
+#   Prints the banner and a new line at the end
 #
-print_banner_start:
-    li  $v0, PRINT_STRING
-    la  $a0, banner_heading
-    syscall
-
-    li  $v0, PRINT_STRING
-    la  $a0, newLine
-    syscall
-    
-    li  $v0, PRINT_STRING
-    la  $a0, print_banner
-    syscall
-
+print_banner:
     li  $v0, PRINT_STRING
     la  $a0, newLine
     syscall
@@ -128,7 +118,11 @@ print_banner_start:
     syscall
 
     li  $v0, PRINT_STRING
-    la  $a0, newLine
+    la  $a0, print_banner_name
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, banner_heading
     syscall
 
     li  $v0, PRINT_STRING
@@ -144,27 +138,62 @@ read_input:
     #   Reads the size of the board
     li  $v0, READ_INT   
     syscall
-    move    $s0, $v0        # s0 = BOARD SIZE
 
     li  $t0, 2              # t0 = low bound (2)
 
-    slt $t9, $t0, $s0       # 2 < s0?
-    bne $t9, $zero, bound_error
+    slt $t9, $t0, $v0       # 2 < s0?
+    beq $t9, $zero, bound_error
     
     li  $t0, 12             # t1 = high bound (12)
-    slt $t9, $s0, $t0       # s0 < 12
-    bne $t9, $zero, bound_error
+    slt $t9, $v0, $t0       # s0 < 12
+    beq $t9, $zero, bound_error
+
+    move    $s0, $v0        # s0 = BOARD SIZE
 
 
     #   Reads the row sums
     li  $v0, READ_STRING
     la  $a0, row_sums_value
-    li  $a1, 20
+    li  $a1, 20             # has the length of the sum or the rows
     syscall
 
+    move    $t0, $a0
 
+    li  $v0, PRINT_STRING
+    la  $a0, row_sums_value
+    syscall
 
     #   Reads the column sums
+
+
+#
+#   Prints the initial puzzle prompt
+#
+print_initial_puzzle_prompt:
+    li  $v0, PRINT_STRING
+    la  $a0, initial_puzzle_heading
+    syscall
+    
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+    # jal     print_initial_board
+
+
+#
+#   Prints the final puzzle prompt
+#
+print_final_puzzle_prompt:
+    li  $v0, PRINT_STRING
+    la  $a0, final_puzzle_heading
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+    j   done_main
 
 
 # 
@@ -175,15 +204,46 @@ bound_error:
     la  $a0, err_invalid_board_size
     syscall
 
+    j   done_main
+
+#
+#   If there is impossible board to solve, print the err statement and go to done_main
+#
+impossinle_message_error:
     li  $v0, PRINT_STRING
-    la  $a0, newLine
+    la  $a0, err_impossible_message
+    syscall
+
+    j   done_main
+
+
+#
+#   If there is a sum error, print the err statement and go to done_main
+#
+sum_value_error:
+    li  $v0, PRINT_STRING
+    la  $a0, err_sum_value
+    syscall
+
+    j   done_main
+    
+
+#
+#   If there is a board character error, print the err statement and go to done_main
+#
+board_character_error:
+    li  $v0, PRINT_STRING
+    la  $a0, err_board_char
     syscall
 
     j   done_main
 
 
 
-
+#
+#   This routine is called when the program is done and the stack needs
+#   to remove the registers.
+#
 done_main:
     lw      $ra, -4+FRAMESIZE_40($sp)
     lw      $s7, -8+FRAMESIZE_40($sp)
