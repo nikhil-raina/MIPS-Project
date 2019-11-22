@@ -48,11 +48,13 @@ horizontal_grid_plus:
 vertical_grid_bar:
     .asciiz " | "
 
-# banner_heading:
-#     .asciiz "******************"    
 
-# banner_heading:
-#     .asciiz "**     TENTS    **"
+banner_heading:
+    .asciiz "******************"    
+
+print_banner:
+    .asciiz "**     TENTS    **"
+
 
 initial_puzzle_heading:
     .asciiz "Initial Puzzle"
@@ -102,6 +104,39 @@ main:
 
 
 #
+#   Prints the banner 
+#
+print_banner_start:
+    li  $v0, PRINT_STRING
+    la  $a0, banner_heading
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+    
+    li  $v0, PRINT_STRING
+    la  $a0, print_banner
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, banner_heading
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+
+#
 #   Function that readsd all the input from the user
 #
 read_input:
@@ -143,7 +178,7 @@ bound_error:
     li  $v0, PRINT_STRING
     la  $a0, newLine
     syscall
-    
+
     j   done_main
 
 
