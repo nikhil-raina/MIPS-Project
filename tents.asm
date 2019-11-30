@@ -31,6 +31,8 @@ FRAMESIZE_48 =	48
 board_size:                 # To store the size of the board.
     .word   0
 
+grid:
+    .space  576
 
 row_sums_value:             # to store the row sums
     .space  50
@@ -38,7 +40,7 @@ row_sums_value:             # to store the row sums
 column_sums_value:          # to store the row sums
     .space  50
 
-initial_sum_values:
+board_input:
     .space  50
 
 horizontal_grid_dash:   
@@ -150,34 +152,26 @@ read_input:
     slt $t9, $v0, $t0           # v0 < 12
     beq $t9, $zero, bound_error
 
-    sw  $v0, -40+FRAMESIZE_40($sp)  # added the boardsize to the stack
-
-    move $s0, $v0
+    move $s0, $v0               # s0 = BOARD SIZE
 
     #   Reads the row sums
     li  $v0, READ_STRING
-    la  $a0, initial_sum_values
+    la  $a0, row_sums_value
     syscall
 
     
     # Parameters for the store_sum_values routine
     #   a0: addr pointer of the input list
     #   a1: board size
-    la  $a0, initial_sum_values
-    move    $a1, $s0            # a1 = BOARD SIZE
+    la  $a0, row_sums_value
+    move    $a1, $s0            # s0 = BOARD SIZE
 
     jal store_number_values     # calls the function to store the real values
-    sw  $v0, -44+FRAMESIZE_40($sp)  # store the sum of rows in the stack.
-    
-
-    li  $v0, PRINT_STRING
-    la  $a0, initial_sum_values
-    syscall
     
    
     #   Reads the column sums
     li  $v0, READ_STRING
-    la  $a0, initial_sum_values
+    la  $a0, column_sums_value
     add $a1, $a1, 2             # compensate the new line character for the
                                 # funtion call
     syscall
@@ -186,14 +180,60 @@ read_input:
     # Parameters for the store_sum_values routine
     #   a0: addr pointer of the input list
     #   a1: board size
-    la  $a0, initial_sum_values
-    move    $a1, $s0            # a1 = BOARD SIZE
+    la  $a0, column_sums_value
+    move    $a1, $s0            # s0 = BOARD SIZE
 
     jal store_number_values     # calls the function to store the real values
-    sw  $v0, -48+FRAMESIZE_40($sp)  # store the sum of rows in the stack.
     
+    
+#   Read the inputs
+#
+#   Will use the grid to store each row at board size distances from each
+#   other. Formula used:
+#           grid + (Row counter * board size) 
+#
+    li  $s3, 0                  # ROW counter
+    la  $s2, grid               # the addr of the grid from 0th pos
+	add $a1, $a1, 2             # compensate the new line character for the
+                                # funtion call
+    
+loop_read_inputs:
+	beq $s3, $s0, done_read_inputs
+    li  $v0, READ_STRING
+    la  $a0, board_input
+    syscall
+
+    jal read_and_check_board_character
+
+    la	$s1, board_input    # the current input for the board    
+    mul $t9, $s3, $s0
+    add $s5, $s2, $t9		# grid position 
+	addi	$s3, $s3, 1
+    li  $s4, 0                  # byte counter for the grid (i)
+
+store_input_in_grid:
+    beq $s4, $s0, loop_read_inputs  # i == board size? 
+                                    #       read_next_input : continue 
+    lb  $t3, 0($s1)
+    sb  $t3, 0($s5)
+    addi	$s5, $s5, 1
+    addi    $s1, $s1, 1
+    addi    $s4, $s4, 1     # i++
+    j store_input_in_grid
 
 
+done_read_inputs:
+	move $a0, $s0
+	jal display_board
+
+
+#
+#	Function will display the board to the user.
+#	$a0: the size of the board
+#		The grid, row and column values can be used by accessing the 
+#		address of those labels.
+#
+display_board:
 
 #
 #   Function to figure out what number is being stored and returns a list of
@@ -224,9 +264,9 @@ store_number_values:
 
     li  $t9, 0              # counter var
 
+
 loop_storing_numbers:
     lb  $s2, 0($s0)         # takes the current byte in the list(numbers)
-    # beq $s2, $zero, good_to_go_storing_numbers
     beq $s2, $t1, good_to_go_storing_numbers
     sub $s2, $s2, $t0       # x - 48 = number -> s1
     sb  $s2, 0($s0)         # swapped the ascii value with the original 
@@ -234,7 +274,6 @@ loop_storing_numbers:
     addi    $s0, $s0, 1     # next ascii value
     addi    $t9, $t9, 1     # adds 1 to find the length of the string
     j   loop_storing_numbers
-
 
 
 good_to_go_storing_numbers:
@@ -250,7 +289,7 @@ good_to_go_storing_numbers:
 
 
 each_digit_tester:
-    beq $s1, $t2, good_to_go_storing_numbers_continue
+    beq $s1, $t2, done_store_number_values
     lb  $s2, 0($s0)                 # takes the current byte in the 
                                     # list(numbers)
     slt $t8, $t1, $s2               # -1 < x
@@ -261,15 +300,69 @@ each_digit_tester:
     addi    $t2, $t2, 1     
     j   each_digit_tester
 
-good_to_go_storing_numbers_continue:
-    move    $v0, $s0                # the new list is getting returned
-    j   done_store_number_values
 
 #
 #   Loads back all the registers that were being used currently so that the
 #   previous registers are preserved and can be used.
 #
 done_store_number_values:
+    lw      $ra, -4+FRAMESIZE_40($sp)
+    lw      $s7, -8+FRAMESIZE_40($sp)
+    lw      $s6, -12+FRAMESIZE_40($sp)
+    lw      $s5, -16+FRAMESIZE_40($sp)
+    lw      $s4, -20+FRAMESIZE_40($sp)
+    lw      $s3, -24+FRAMESIZE_40($sp)
+    lw      $s2, -28+FRAMESIZE_40($sp)
+    lw      $s1, -32+FRAMESIZE_40($sp)
+    lw      $s0, -36+FRAMESIZE_40($sp)
+    addi    $sp, $sp, FRAMESIZE_40
+	jr	$ra
+
+
+#
+#   Function to figure out whether the input for the tents is correct.
+#   The input should be only (T) and (.)
+#
+#   $a0: The input string of the board
+#
+read_and_check_board_character:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    li  $t0, 46             # ASCII (.)
+    li  $t1, 84             # ACSII (T)
+    li  $t2, 10             # ASCII (new line character)
+    move    $s0, $a0
+
+
+loop_board_checker_and_store:
+    lb  $s1, 0($s0)             # takes the current byte in the list(numbers)
+    beq $s1, $t2, done_read_and_check_board_character
+    bne $s1, $t0, next_character_check
+    addi    $s0, $s0, 1         # next ascii value
+    j   loop_board_checker_and_store
+
+
+next_character_check:
+    bne $s1, $t1, board_character_error
+    addi    $s0, $s0, 1         # next ascii value
+    j   loop_board_checker_and_store
+
+
+#
+#   Loads back all the registers that were being used currently so that the
+#   previous registers are preserved and can be used.
+#
+done_read_and_check_board_character:
+    sb  $zero, 0($s0)           # swapping new line character with 0 
     lw      $ra, -4+FRAMESIZE_40($sp)
     lw      $s7, -8+FRAMESIZE_40($sp)
     lw      $s6, -12+FRAMESIZE_40($sp)
