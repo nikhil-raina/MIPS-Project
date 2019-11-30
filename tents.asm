@@ -2,11 +2,11 @@
 # Author:   Nikhil Raina
 # 
 #
-# Description:  T
+# Description:  The goal of this project is to write 
+#       a complete MIPS program from scratch.
+#       Using backtracking with severe pruning.
 #
-#
-#
-#
+
 
 # syscall codes
 PRINT_INT =	1
@@ -27,20 +27,22 @@ FRAMESIZE_48 =	48
 
 #
 #   Declaring and initialising constants that will be used in the program.
-
 #
-board_size:             # To store the size of the board.
+board_size:                 # To store the size of the board.
     .word   0
 
 
-row_sums_value:         # to store the row sums
-    .space  20
+row_sums_value:             # to store the row sums
+    .space  50
 
-column_sums_value:      # to store the row sums
-    .space  20
+column_sums_value:          # to store the row sums
+    .space  50
+
+initial_sum_values:
+    .space  50
 
 horizontal_grid_dash:   
-    .asciiz "-"
+    .asciiz "-------------"
 
 horizontal_grid_plus:
     .asciiz "+"
@@ -139,32 +141,122 @@ read_input:
     li  $v0, READ_INT   
     syscall
 
-    li  $t0, 2              # t0 = low bound (2)
+    li  $t0, 2                  # t0 = low bound (2)
 
-    slt $t9, $t0, $v0       # 2 < s0?
+    slt $t9, $t0, $v0           # 2 < v0?
     beq $t9, $zero, bound_error
     
-    li  $t0, 12             # t1 = high bound (12)
-    slt $t9, $v0, $t0       # s0 < 12
+    li  $t0, 12                 # t1 = high bound (12)
+    slt $t9, $v0, $t0           # v0 < 12
     beq $t9, $zero, bound_error
 
-    move    $s0, $v0        # s0 = BOARD SIZE
+    sw  $v0, -40+FRAMESIZE_40($sp)  # added the boardsize to the stack
+
+    move    $a1, $v0            # a1 = BOARD SIZE
 
 
     #   Reads the row sums
     li  $v0, READ_STRING
-    la  $a0, row_sums_value
-    li  $a1, 20             # has the length of the sum or the rows
+    la  $a0, initial_sum_values
+    addi    $a1, $a1, 0         # has the length of the sum or the rows
     syscall
 
-    move    $t0, $a0
+
+    jal store_number_values
+    sw  $v0, -44+FRAMESIZE_40($sp)
+    
+    move    $t0, $v0            # return list(row number) -> t0
+
 
     li  $v0, PRINT_STRING
-    la  $a0, row_sums_value
+    la  $a0, initial_sum_values
     syscall
-
+    j done_main
     #   Reads the column sums
 
+
+#
+#   Function to figure out what number is being stored and returns a list of
+#   the numbers that were read. Handles errors where necessary.
+#   
+#   $a0:    contains the number list in ascii
+#   $a1:    board size
+#
+store_number_values:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    move    $s0, $a0        # input number is in s0
+    move    $s1, $a1        # board size
+    li  $t0, 48             # stores the value of 0. 
+                            # subtracting the value with 0 will give me the
+                            # number to do math with.
+    li  $t1, 0              # counter var
+
+    add    $t9, $zero, 1
+
+loop_storing_numbers:
+    lb  $s2, 0($s0)         # takes the current byte in the list(numbers)
+    beq $s2, $zero, good_to_go_storing_numbers
+    sub $s2, $s2, $t0       # x - 48 = number -> s1
+    sb  $s2, 0($s0)         # swapped the ascii value with the original 
+                            # number
+    addi    $s0, $s0, 1     # next ascii value
+    addi    $t9, $t9, 1     # adds 1 to find the length of the string
+    j   loop_storing_numbers
+
+
+good_to_go_storing_numbers:
+    bne $t9, $s1, sum_value_error   # board size == calculated board size?
+    li  $t1, 1
+    add $t9, $t1, $t9               #   (n + 1)
+    div $t9, $t9, 2                 #   (n + 1) / 2
+    
+    addi    $t9, $t9, 1             # upper bound for exclusion
+    li  $t1, -1
+    li  $t2, 0                      #  counter variable
+
+
+each_digit_tester:
+    beq $s1, $t2, good_to_go_storing_numbers_continue
+    lb  $s2, 0($s0)                 # takes the current byte in the 
+                                    # list(numbers)
+    slt $t8, $t1, $s2               # -1 < x
+    beq $t8, $zero, sum_value_error
+    slt $t8, $s2, $t9               # x < [(n + 1) / 2]
+    beq $t8, $zero, sum_value_error
+    addi    $s2, $s2, 1             # go to next byte in the list(numbers)
+    addi    $t2, $t2, 1     
+    j   each_digit_tester
+
+good_to_go_storing_numbers_continue:
+    move    $v0, $s0                # the new list is getting returned
+    j   done_store_number_values
+
+#
+#   Loads back all the registers that were being used currently so that the
+#   previous registers are preserved and can be used.
+#
+done_store_number_values:
+    lw      $ra, -4+FRAMESIZE_40($sp)
+    lw      $s7, -8+FRAMESIZE_40($sp)
+    lw      $s6, -12+FRAMESIZE_40($sp)
+    lw      $s5, -16+FRAMESIZE_40($sp)
+    lw      $s4, -20+FRAMESIZE_40($sp)
+    lw      $s3, -24+FRAMESIZE_40($sp)
+    lw      $s2, -28+FRAMESIZE_40($sp)
+    lw      $s1, -32+FRAMESIZE_40($sp)
+    lw      $s0, -36+FRAMESIZE_40($sp)
+    addi    $sp, $sp, FRAMESIZE_40
+	jr	$ra
 
 #
 #   Prints the initial puzzle prompt
