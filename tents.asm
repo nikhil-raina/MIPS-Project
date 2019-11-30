@@ -152,27 +152,47 @@ read_input:
 
     sw  $v0, -40+FRAMESIZE_40($sp)  # added the boardsize to the stack
 
-    move    $a1, $v0            # a1 = BOARD SIZE
-
+    move $s0, $v0
 
     #   Reads the row sums
     li  $v0, READ_STRING
     la  $a0, initial_sum_values
-    addi    $a1, $a1, 0         # has the length of the sum or the rows
     syscall
 
-
-    jal store_number_values
-    sw  $v0, -44+FRAMESIZE_40($sp)
     
-    move    $t0, $v0            # return list(row number) -> t0
+    # Parameters for the store_sum_values routine
+    #   a0: addr pointer of the input list
+    #   a1: board size
+    la  $a0, initial_sum_values
+    move    $a1, $s0            # a1 = BOARD SIZE
 
+    jal store_number_values     # calls the function to store the real values
+    sw  $v0, -44+FRAMESIZE_40($sp)  # store the sum of rows in the stack.
+    
 
     li  $v0, PRINT_STRING
     la  $a0, initial_sum_values
     syscall
-    j done_main
+    
+   
     #   Reads the column sums
+    li  $v0, READ_STRING
+    la  $a0, initial_sum_values
+    add $a1, $a1, 2             # compensate the new line character for the
+                                # funtion call
+    syscall
+
+    
+    # Parameters for the store_sum_values routine
+    #   a0: addr pointer of the input list
+    #   a1: board size
+    la  $a0, initial_sum_values
+    move    $a1, $s0            # a1 = BOARD SIZE
+
+    jal store_number_values     # calls the function to store the real values
+    sw  $v0, -48+FRAMESIZE_40($sp)  # store the sum of rows in the stack.
+    
+
 
 
 #
@@ -199,13 +219,15 @@ store_number_values:
     li  $t0, 48             # stores the value of 0. 
                             # subtracting the value with 0 will give me the
                             # number to do math with.
-    li  $t1, 0              # counter var
+    li  $t1, 10             # to check for space and sub for null
 
-    add    $t9, $zero, 1
+
+    li  $t9, 0              # counter var
 
 loop_storing_numbers:
     lb  $s2, 0($s0)         # takes the current byte in the list(numbers)
-    beq $s2, $zero, good_to_go_storing_numbers
+    # beq $s2, $zero, good_to_go_storing_numbers
+    beq $s2, $t1, good_to_go_storing_numbers
     sub $s2, $s2, $t0       # x - 48 = number -> s1
     sb  $s2, 0($s0)         # swapped the ascii value with the original 
                             # number
@@ -214,7 +236,9 @@ loop_storing_numbers:
     j   loop_storing_numbers
 
 
+
 good_to_go_storing_numbers:
+    sb  $zero, 0($s0)
     bne $t9, $s1, sum_value_error   # board size == calculated board size?
     li  $t1, 1
     add $t9, $t1, $t9               #   (n + 1)
