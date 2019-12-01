@@ -13,6 +13,7 @@ PRINT_INT =	1
 PRINT_STRING = 	4
 READ_INT = 	5
 READ_STRING =	8
+PRINT_CHARACTER = 	11
 
 # various frame sizes used by different routines
 
@@ -50,7 +51,7 @@ horizontal_grid_plus:
     .asciiz "+"
 
 vertical_grid_bar:
-    .asciiz " | "
+    .asciiz "|"
 
 banner_heading:
     .asciiz "******************\n"    
@@ -211,6 +212,7 @@ loop_read_inputs:
 	addi	$s3, $s3, 1
     li  $s4, 0                  # byte counter for the grid (i)
 
+
 store_input_in_grid:
     beq $s4, $s0, loop_read_inputs  # i == board size? 
                                     #       read_next_input : continue 
@@ -225,6 +227,7 @@ store_input_in_grid:
 done_read_inputs:
 	move $a0, $s0
 	jal display_board
+	j done_main
 
 
 #
@@ -234,6 +237,200 @@ done_read_inputs:
 #		address of those labels.
 #
 display_board:
+	addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+	move $s0, $a0				# board size
+	la	$s1, grid				# addr of grid
+	la	$s2, row_sums_value		# addr of sum of rows
+	la	$s3, column_sums_value	# addr of sum of columns
+	li	$t0, 0					# ROW counter
+	li	$t1, 0					# COLUMN counter
+
+	li  $v0, PRINT_STRING
+    la  $a0, initial_puzzle_heading
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+	jal	plus_dash_headings
+	j	loop_display_outer
+
+#
+#	Routine function to print the plus and dashes 
+#
+#
+plus_dash_headings:
+	addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+	li  $v0, PRINT_STRING
+    la  $a0, horizontal_grid_plus
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, horizontal_grid_dash
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, horizontal_grid_plus
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+	lw      $ra, -4+FRAMESIZE_40($sp)
+    lw      $s7, -8+FRAMESIZE_40($sp)
+    lw      $s6, -12+FRAMESIZE_40($sp)
+    lw      $s5, -16+FRAMESIZE_40($sp)
+    lw      $s4, -20+FRAMESIZE_40($sp)
+    lw      $s3, -24+FRAMESIZE_40($sp)
+    lw      $s2, -28+FRAMESIZE_40($sp)
+    lw      $s1, -32+FRAMESIZE_40($sp)
+    lw      $s0, -36+FRAMESIZE_40($sp)
+    addi    $sp, $sp, FRAMESIZE_40
+	jr	$ra
+
+
+#
+#	This will loop through the board and print out the values in the grid
+#
+loop_display_outer:
+	li  $v0, PRINT_STRING
+    la  $a0, vertical_grid_bar
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, space
+    syscall
+	
+	li	$t1, 0					# start from the begining for the counter
+
+loop_display_inner:
+	beq $t1, $s0, done_loop_display_inner
+	lb	$t2, 0($s1)				# grid current value
+	
+	li  $v0, PRINT_CHARACTER
+    move	$a0, $t2			# print current grid value
+	syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, space
+    syscall
+
+    addi	$s1, $s1, 1			# next grid value
+	addi	$t1, $t1, 1			# next column value
+	j	loop_display_inner
+
+
+done_loop_display_inner:
+	li  $v0, PRINT_STRING
+    la  $a0, vertical_grid_bar
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, space
+    syscall
+
+	lb	$t2, 0($s2)				# sum of rows current value
+	
+	li  $v0, PRINT_INT
+    move	$a0, $t2
+    syscall
+
+	addi	$s2, $s2, 1			# next sum of rows value
+	
+	li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+	addi	$t0, $t0, 1			# counter ++
+	beq $t0, $s0, display_board_last
+	j	loop_display_outer
+
+
+display_board_last:
+	jal	plus_dash_headings
+
+	li  $v0, PRINT_STRING
+    la  $a0, space
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, space
+    syscall
+
+	li	$t1, 0
+
+
+loop_vertical_values:
+	beq	$t1, $s0, done_display_board
+	lb	$t2, 0($s3)				# sum of columns current value	
+
+	li  $v0, PRINT_INT
+    move	$a0, $t2
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, space
+    syscall
+
+
+	addi	$s3, $s3, 1			# next sum of columns value
+	addi	$t1, $t1, 1			# counter ++
+
+	j	loop_vertical_values
+#
+#   Loads back all the registers that were being used currently so that the
+#   previous registers are preserved and can be used.
+#
+done_display_board:
+	li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+	
+	li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, final_puzzle_heading
+    syscall
+
+	li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+	lw      $ra, -4+FRAMESIZE_40($sp)
+    lw      $s7, -8+FRAMESIZE_40($sp)
+    lw      $s6, -12+FRAMESIZE_40($sp)
+    lw      $s5, -16+FRAMESIZE_40($sp)
+    lw      $s4, -20+FRAMESIZE_40($sp)
+    lw      $s3, -24+FRAMESIZE_40($sp)
+    lw      $s2, -28+FRAMESIZE_40($sp)
+    lw      $s1, -32+FRAMESIZE_40($sp)
+    lw      $s0, -36+FRAMESIZE_40($sp)
+    addi    $sp, $sp, FRAMESIZE_40
+	jr	$ra
 
 #
 #   Function to figure out what number is being stored and returns a list of
@@ -418,7 +615,7 @@ bound_error:
 #
 #   If there is impossible board to solve, print the err statement and go to done_main
 #
-impossinle_message_error:
+impossible_message_error:
     li  $v0, PRINT_STRING
     la  $a0, err_impossible_message
     syscall
