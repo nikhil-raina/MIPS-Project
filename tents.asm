@@ -45,7 +45,7 @@ board_input:
     .space  50
 
 horizontal_grid_dash:   
-    .asciiz "-------------"
+    .asciiz "-"
 
 horizontal_grid_plus:
     .asciiz "+"
@@ -168,7 +168,7 @@ read_input:
     move    $a1, $s0            # s0 = BOARD SIZE
 
     jal store_number_values     # calls the function to store the real values
-    
+    beq $v0, $zero, done_main
    
     #   Reads the column sums
     li  $v0, READ_STRING
@@ -185,7 +185,8 @@ read_input:
     move    $a1, $s0            # s0 = BOARD SIZE
 
     jal store_number_values     # calls the function to store the real values
-    
+    beq $v0, $zero, done_main
+
     
 #   Read the inputs
 #
@@ -205,6 +206,7 @@ loop_read_inputs:
     syscall
 
     jal read_and_check_board_character
+	beq	$v0, $zero, done_main
 
     la	$s1, board_input    # the current input for the board    
     mul $t9, $s3, $s0
@@ -252,7 +254,6 @@ display_board:
 	la	$s1, grid				# addr of grid
 	la	$s2, row_sums_value		# addr of sum of rows
 	la	$s3, column_sums_value	# addr of sum of columns
-	li	$t0, 0					# ROW counter
 	li	$t1, 0					# COLUMN counter
 
 	li  $v0, PRINT_STRING
@@ -263,12 +264,14 @@ display_board:
     la  $a0, newLine
     syscall
 
+    move    $a0, $s0
 	jal	plus_dash_headings
-	j	loop_display_outer
+	
+    j	loop_display_outer
 
 #
 #	Routine function to print the plus and dashes 
-#
+#   $a0: board size
 #
 plus_dash_headings:
 	addi    $sp, $sp,-FRAMESIZE_40
@@ -282,14 +285,27 @@ plus_dash_headings:
     sw      $s1, -32+FRAMESIZE_40($sp)
     sw      $s0, -36+FRAMESIZE_40($sp)
 
+    move    $s0, $a0
+    add $s0, $s0, $s0
+    addi    $s0, $s0, 1
+    li  $t0, 0
+    
 	li  $v0, PRINT_STRING
     la  $a0, horizontal_grid_plus
     syscall
 
+
+loop_dashes:
+    beq $t0, $s0, done_loop_dashes
 	li  $v0, PRINT_STRING
     la  $a0, horizontal_grid_dash
     syscall
 
+    addi    $t0, $t0, 1
+    j   loop_dashes
+
+
+done_loop_dashes:
 	li  $v0, PRINT_STRING
     la  $a0, horizontal_grid_plus
     syscall
@@ -298,7 +314,9 @@ plus_dash_headings:
     la  $a0, newLine
     syscall
 
-	lw      $ra, -4+FRAMESIZE_40($sp)
+    li	$t0, 0					# ROW counter
+	
+    lw      $ra, -4+FRAMESIZE_40($sp)
     lw      $s7, -8+FRAMESIZE_40($sp)
     lw      $s6, -12+FRAMESIZE_40($sp)
     lw      $s5, -16+FRAMESIZE_40($sp)
@@ -324,6 +342,7 @@ loop_display_outer:
     syscall
 	
 	li	$t1, 0					# start from the begining for the counter
+
 
 loop_display_inner:
 	beq $t1, $s0, done_loop_display_inner
@@ -369,6 +388,7 @@ done_loop_display_inner:
 
 
 display_board_last:
+    move    $a0, $s0
 	jal	plus_dash_headings
 
 	li  $v0, PRINT_STRING
@@ -399,6 +419,8 @@ loop_vertical_values:
 	addi	$t1, $t1, 1			# counter ++
 
 	j	loop_vertical_values
+
+
 #
 #   Loads back all the registers that were being used currently so that the
 #   previous registers are preserved and can be used.
@@ -451,7 +473,7 @@ store_number_values:
     sw      $s1, -32+FRAMESIZE_40($sp)
     sw      $s0, -36+FRAMESIZE_40($sp)
 
-    move    $s0, $a0        # input number is in s0
+    move    $s0, $a0        # input number list is in s0
     move    $s1, $a1        # board size
     li  $t0, 48             # stores the value of 0. 
                             # subtracting the value with 0 will give me the
@@ -483,6 +505,7 @@ good_to_go_storing_numbers:
     addi    $t9, $t9, 1             # upper bound for exclusion
     li  $t1, -1
     li  $t2, 0                      #  counter variable
+    move    $s0, $a0        # input number list is in s0
 
 
 each_digit_tester:
@@ -493,9 +516,20 @@ each_digit_tester:
     beq $t8, $zero, sum_value_error
     slt $t8, $s2, $t9               # x < [(n + 1) / 2]
     beq $t8, $zero, sum_value_error
-    addi    $s2, $s2, 1             # go to next byte in the list(numbers)
+    addi    $s0, $s0, 1             # go to next byte in the list(numbers)
     addi    $t2, $t2, 1     
     j   each_digit_tester
+
+#
+#   If there is a sum error, print the err statement and go to done_main
+#
+sum_value_error:
+    li  $v0, PRINT_STRING
+    la  $a0, err_sum_value
+    syscall
+
+	move	$v0, $zero
+    j   exit
 
 
 #
@@ -503,6 +537,10 @@ each_digit_tester:
 #   previous registers are preserved and can be used.
 #
 done_store_number_values:
+	li	$t0, 1
+	move $v0, $t0
+
+exit:
     lw      $ra, -4+FRAMESIZE_40($sp)
     lw      $s7, -8+FRAMESIZE_40($sp)
     lw      $s6, -12+FRAMESIZE_40($sp)
@@ -514,6 +552,51 @@ done_store_number_values:
     lw      $s0, -36+FRAMESIZE_40($sp)
     addi    $sp, $sp, FRAMESIZE_40
 	jr	$ra
+
+
+#
+#	Routine to get the specific index from the grid
+#	$a0: row value
+#	$a1: col value
+#	$a2: size of board
+#
+#		return: The required value from the grid.
+#
+get_index:
+	addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+	move	$s0, $a0				# row value
+	move	$s1, $a1				# col value
+	move	$s2, $a2				# board size
+	la	$t0, grid
+
+	mul	$t1, $s0, $s2				# row * board size
+	add	$t1, $s1, $t1				# (row * board size) + column
+	add	$t0, $t0, $t1
+
+	lb	$v0, 0($t0)					# return required value from grid.
+
+	lw      $ra, -4+FRAMESIZE_40($sp)
+    lw      $s7, -8+FRAMESIZE_40($sp)
+    lw      $s6, -12+FRAMESIZE_40($sp)
+    lw      $s5, -16+FRAMESIZE_40($sp)
+    lw      $s4, -20+FRAMESIZE_40($sp)
+    lw      $s3, -24+FRAMESIZE_40($sp)
+    lw      $s2, -28+FRAMESIZE_40($sp)
+    lw      $s1, -32+FRAMESIZE_40($sp)
+    lw      $s0, -36+FRAMESIZE_40($sp)
+    addi    $sp, $sp, FRAMESIZE_40
+	jr	$ra
+
 
 
 #
@@ -553,6 +636,19 @@ next_character_check:
     addi    $s0, $s0, 1         # next ascii value
     j   loop_board_checker_and_store
 
+#
+#   If there is a board character error, print the err statement and go to done_main
+#
+board_character_error:
+    li  $v0, PRINT_STRING
+    la  $a0, err_board_char
+    syscall
+
+	move	$v0, $zero
+
+	j	exit
+	
+
 
 #
 #   Loads back all the registers that were being used currently so that the
@@ -560,46 +656,9 @@ next_character_check:
 #
 done_read_and_check_board_character:
     sb  $zero, 0($s0)           # swapping new line character with 0 
-    lw      $ra, -4+FRAMESIZE_40($sp)
-    lw      $s7, -8+FRAMESIZE_40($sp)
-    lw      $s6, -12+FRAMESIZE_40($sp)
-    lw      $s5, -16+FRAMESIZE_40($sp)
-    lw      $s4, -20+FRAMESIZE_40($sp)
-    lw      $s3, -24+FRAMESIZE_40($sp)
-    lw      $s2, -28+FRAMESIZE_40($sp)
-    lw      $s1, -32+FRAMESIZE_40($sp)
-    lw      $s0, -36+FRAMESIZE_40($sp)
-    addi    $sp, $sp, FRAMESIZE_40
-	jr	$ra
-
-#
-#   Prints the initial puzzle prompt
-#
-print_initial_puzzle_prompt:
-    li  $v0, PRINT_STRING
-    la  $a0, initial_puzzle_heading
-    syscall
-    
-    li  $v0, PRINT_STRING
-    la  $a0, newLine
-    syscall
-
-    # jal     print_initial_board
-
-
-#
-#   Prints the final puzzle prompt
-#
-print_final_puzzle_prompt:
-    li  $v0, PRINT_STRING
-    la  $a0, final_puzzle_heading
-    syscall
-
-    li  $v0, PRINT_STRING
-    la  $a0, newLine
-    syscall
-
-    j   done_main
+    li $t0, 1
+	move $v0, $t0
+	j	exit
 
 
 # 
@@ -626,25 +685,13 @@ impossible_message_error:
 #
 #   If there is a sum error, print the err statement and go to done_main
 #
-sum_value_error:
-    li  $v0, PRINT_STRING
-    la  $a0, err_sum_value
-    syscall
+# sum_value_error:
+#     li  $v0, PRINT_STRING
+#     la  $a0, err_sum_value
+#     syscall
 
-    j   done_main
+#     j   done_main
     
-
-#
-#   If there is a board character error, print the err statement and go to done_main
-#
-board_character_error:
-    li  $v0, PRINT_STRING
-    la  $a0, err_board_char
-    syscall
-
-    j   done_main
-
-
 
 #
 #   This routine is called when the program is done and the stack needs
