@@ -29,11 +29,11 @@ FRAMESIZE_48 =	48
 #
 #   Declaring and initialising constants that will be used in the program.
 #
-board_size:                 # To store the size of the board.
-    .word   0
-
 grid:
     .space  576
+
+tree_list:
+	.space	150
 
 row_sums_value:             # to store the row sums
     .space  50
@@ -227,9 +227,92 @@ store_input_in_grid:
 
 
 done_read_inputs:
-	move $a0, $s0
+	move    $a0, $s0
 	jal display_board
-	j done_main
+
+    move	$a0, $s0
+	jal	get_tree_positions
+
+    move    $a0, $s0
+
+#
+#   Routine that gets all the tree positions in the official grid
+#	and stores it in the tree_list label.
+#   $a0:    size of board
+#
+get_tree_positions:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    move    $s0, $a0        # board size
+    mul	$s0, $s0, $s0		# loop limit
+	la  $s1, grid           # official grid starting addr
+	la	$s2, tree_list		# addr to store the list of trees
+	li	$t0, 0				# cell counter (i)
+    li	$t1, -1				# ending number
+	li  $t2, 84             # ACSII (T)
+
+
+loop_get_tree_positions:
+	beq	$s0, $t0, done_get_tree_positions
+	lb	$t3, 0($s1)			# gets the value in the current cell
+	beq	$t3, $t2, add_to_tree_list
+	j	continue_loop_get_tree_positions
+
+
+add_to_tree_list:
+	sb	$t0, 0($s2)			# stores the position number of the tree in the
+                            # tree_list
+	addi    $s2, $s2, 1     # next position for the tree_list
+
+
+continue_loop_get_tree_positions:
+	addi	$t0, $t0, 1     # i++
+	addi	$s1, $s1, 1     # next position for the grid
+	j	loop_get_tree_positions
+
+#
+#   Loads back all the registers that were being used currently so that the
+#   previous registers are preserved and can be used.
+#
+done_get_tree_positions:
+    sb	$t1, 0($s2)
+    lw      $ra, -4+FRAMESIZE_40($sp)
+    lw      $s7, -8+FRAMESIZE_40($sp)
+    lw      $s6, -12+FRAMESIZE_40($sp)
+    lw      $s5, -16+FRAMESIZE_40($sp)
+    lw      $s4, -20+FRAMESIZE_40($sp)
+    lw      $s3, -24+FRAMESIZE_40($sp)
+    lw      $s2, -28+FRAMESIZE_40($sp)
+    lw      $s1, -32+FRAMESIZE_40($sp)
+    lw      $s0, -36+FRAMESIZE_40($sp)
+    addi    $sp, $sp, FRAMESIZE_40
+	jr	$ra
+
+
+#
+#   Routine checks whether the entered tree position 
+#
+#
+neighbours_checker:
+
+
+
+#
+#   Loads back all the registers that were being used currently so that the
+#   previous registers are preserved and can be used.
+#
+done_neighbours_checker:
+	
+    # j done_main
 
 
 #
@@ -540,6 +623,7 @@ done_store_number_values:
 	li	$t0, 1
 	move $v0, $t0
 
+
 exit:
     lw      $ra, -4+FRAMESIZE_40($sp)
     lw      $s7, -8+FRAMESIZE_40($sp)
@@ -598,7 +682,6 @@ get_index:
 	jr	$ra
 
 
-
 #
 #   Function to figure out whether the input for the tents is correct.
 #   The input should be only (T) and (.)
@@ -637,7 +720,8 @@ next_character_check:
     j   loop_board_checker_and_store
 
 #
-#   If there is a board character error, print the err statement and go to done_main
+#   If there is a board character error, print the err statement and go to 
+#   done_main
 #
 board_character_error:
     li  $v0, PRINT_STRING
@@ -672,7 +756,8 @@ bound_error:
     j   done_main
 
 #
-#   If there is impossible board to solve, print the err statement and go to done_main
+#   If there is impossible board to solve, print the err statement and go to 
+#   done_main
 #
 impossible_message_error:
     li  $v0, PRINT_STRING
@@ -680,17 +765,6 @@ impossible_message_error:
     syscall
 
     j   done_main
-
-
-#
-#   If there is a sum error, print the err statement and go to done_main
-#
-# sum_value_error:
-#     li  $v0, PRINT_STRING
-#     la  $a0, err_sum_value
-#     syscall
-
-#     j   done_main
     
 
 #
