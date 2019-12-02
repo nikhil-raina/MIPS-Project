@@ -260,6 +260,9 @@ done_read_inputs:
 #
 #   $a0: position of the current cell.
 #
+#   return: 0 -> no tent found near the current position
+#           1 -> tent found near current position   
+#
 check_neighbors:
     addi    $sp, $sp,-FRAMESIZE_40
     sw      $ra, -4+FRAMESIZE_40($sp)
@@ -274,8 +277,216 @@ check_neighbors:
 
     la  $s0, grid           # starting addr of the grid
     move    $s1, $a0        # the current position of the cell in check
-    li  $t0, 65             # ASCII (A) -> tent
+    li  $s2, 65             # ASCII (A) -> tent
 
+start_check:
+    # checks if the pos has a left value
+    move    $a0, $s1        
+    jal left_checker
+
+    bne $v0, $zero, left_present
+    
+    # no left position is present
+    
+    # checks if the pos has an up value when no left value
+    move    $a0, $s1
+    jal up_checker
+
+    bne $v0, $zero, up_present
+
+    move    $t1, $s1
+    addi    $t1, $t1, 1     # right position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+    
+    move    $t1, $s1
+    add $t1, $t1, $s1       # down position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    addi    $t1, $t1, 1     # down right corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    j   no_tent_present
+    
+    
+up_present:
+    move    $t1, $s1
+    sub $t1, $t1, $s1       # up position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    # checks if the pos has a right value when there is up
+    
+    # Since there is no left, there is definitely a right value
+    move    $t1, $s1
+    addi    $t1, $t1, 1        # right position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    move    $t1, $s1
+    sub $t1, $t1, $s1       # right up corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    # checks if the pos has a down value when there is up and right 
+    move    $a0, $s1
+    jal down_checker
+
+    bne $v0, $zero, right_up_down_present
+
+    # no down position is present when up and right are present
+    j   no_tent_present
+    
+
+right_up_down_present:
+    move    $t1, $s1
+    add $t1, $t1, $s1       # down position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    move    $t1, $s1
+    addi    $t1, $t1, 1     # right down corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    j   no_tent_present
+
+
+left_present:
+    move    $t1, $s1
+    addi    $t1, $t1, -1    # left position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    # checks if the pos has an up value when left value present
+    move    $a0, $s1        
+    jal up_checker
+
+    bne $v0, $zero, up_left_present
+    
+    # no up value present when left present
+
+    # if there is no up value, there is definitely a down value
+    move    $t1, $s1
+    add $t1, $t1, $s1       # down position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    addi    $t1, $t1, -1    # left down corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+    
+    # checks if the pos has a right value when there is down and left
+    move    $a0, $s1
+    jal right_checker
+
+    bne $v0, $zero, right_down_left_present
+    
+    # no right value present when there is down and left
+    j   no_tent_present
+
+
+right_down_left_present:
+    move    $t1, $s1
+    addi    $t1, $t1, 1     # right position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+    
+    add $t1, $t1, $s1       # right down corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+    
+    j   no_tent_present
+
+
+up_left_present:
+    move    $t1, $s1
+    sub $t1, $t1, $s1       # up position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+    
+    addi    $t1, $t1, -1    # left up corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+    
+
+    # checks if the pos has a right value when there is up and left
+    move    $a0, $s1
+    jal right_checker
+
+    bne $v0, $zero, right_up_left_present
+
+    # no right value present when up and left present
+    move    $a0, $s1
+    jal down_checker
+
+    bne $v0, $zero, down_up_left_present
+
+    j   no_tent_present
+
+
+down_up_left_present:
+    move    $t1, $s1
+    add $t1, $t1, $s1       # down position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    addi    $t1, $t1, -1    # left down corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    # no down value present when up and left present
+    j   no_tent_present
+
+
+right_up_left_present:
+    move    $t1, $s1
+    addi    $t1, $t1, 1     # right position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+    
+    sub $t1, $t1, $s1       # right up corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+
+    # checks if the pos has a down value when there is up and left and right
+    move    $a0, $s1
+    jal down_checker
+
+    bne $v0, $zero, down_right_up_left_present
+
+    # no down value present when right, up and left present
+    j   no_tent_present
+
+
+down_right_up_left_present:
+    move    $t1, $s1
+    add $t1, $t1, $s1       # down position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    addi    $t1, $t1, -1    # left down corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    addi    $t1, $t1, 2     # right down corner position
+    lb  $t2, 0($t1)         # getting the value
+    beq $t2, $s2, tent_present
+
+    j   no_tent_present    
+
+
+tent_present:
+    li  $v0, 1              # tent found near the position
+    j   exit
+
+
+no_tent_present:
+    move    $v0, $zero      # no tent present near the position
+    j   exit
 
 
 #
@@ -321,7 +532,7 @@ solve:
 
 
 loop_solve:
-    beq $t0, $t9, done_calculate
+    beq $t0, $t9, done_solve
     lb  $t1, 0($s1)             # value (position) of the tree_list
     
 
