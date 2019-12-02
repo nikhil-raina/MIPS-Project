@@ -32,6 +32,9 @@ FRAMESIZE_48 =	48
 grid:
     .space  576
 
+board_size:
+    .space  1
+
 tree_list:
 	.space	150
 
@@ -144,16 +147,19 @@ read_input:
     li  $v0, READ_INT   
     syscall
 
-    li  $t0, 2                  # t0 = low bound (2)
+    li  $t0, 1                  # t0 = low bound (2)
 
-    slt $t9, $t0, $v0           # 2 < v0?
+    slt $t9, $t0, $v0           # 1 < v0?
     beq $t9, $zero, bound_error
     
-    li  $t0, 12                 # t1 = high bound (12)
-    slt $t9, $v0, $t0           # v0 < 12
+    li  $t0, 13                 # t1 = high bound (12)
+    slt $t9, $v0, $t0           # v0 < 13
     beq $t9, $zero, bound_error
 
     move $s0, $v0               # s0 = BOARD SIZE
+
+    la  $t0, board_size
+    sb  $s0, 0($t0)
 
     #   Reads the row sums
     li  $v0, READ_STRING
@@ -233,7 +239,232 @@ done_read_inputs:
     move	$a0, $s0
 	jal	get_tree_positions
 
-    move    $a0, $s0
+# Get tree_list addr and load the first position.
+# Pass that as a parameter. 
+    la  $a0, tree_list
+    jal solve
+
+    beq $v0, $zero, impossible_message_error
+
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+
+    j   done_main
+
+
+#
+#   Routine checks for the current cell's neighbors and tries to find a tent.
+#   If a tent is present, it will return a 0, otherwise a 1. This will indicate
+#   that the current cell can have a tent.
+#
+#   $a0: position of the current cell.
+#
+check_neighbors:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    la  $s0, grid           # starting addr of the grid
+    move    $s1, $a0        # the current position of the cell in check
+    li  $t0, 65             # ASCII (A) -> tent
+
+
+
+#
+#   Loads back all the registers that were being used currently so that the
+#   previous registers are preserved and can be used.
+#
+done_check_neighbors:
+    j   exit
+
+
+#
+#   Routine responsible to use the method of back tracking and figure out a way
+#   to solve the board, if the board is solvable. It returns 1 if the board has
+#   been solved otherwise a 0. This will then make the board go through added
+#   recursive calls till all the future cases have been checked.
+#   
+#   $a0:    board size
+#   
+#   return: 0 -> no result for current configuration
+#           1 -> board solved
+#
+solve:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    la  $s0, board_size         # board size
+    move    $s1, $a0            # starting addr for the tree_list
+                                # this will allow me to not go about tracing
+                                # back the memory addr for the tree_list
+    
+    la  $s2, grid               # starting addr for the grid
+    li  $t0, 0                  # counter for tree_list
+    li  $t9, -1                 # limit for the tree_list
+    li  $t2, 0                  # return value for checks
+
+
+loop_solve:
+    beq $t0, $t9, done_calculate
+    lb  $t1, 0($s1)             # value (position) of the tree_list
+    
+
+
+#
+#   Loads back all the registers that were being used currently so that the
+#   previous registers are preserved and can be used.
+#
+done_solve:
+    j   exit
+
+
+#
+#   Routine that takes the index and the size and checks if 
+#   the cell has a left space
+#           index % size != 0? 1 : 0
+#               1: (left space present)  
+#               0: (left space not there)              
+#   $a0: current index
+#
+left_checker:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    la  $t0, board_size
+    lb  $s0, 0($t0)
+    move    $s1, $a0            # index on the board
+    
+    rem $t3, $s1, $s0           # index % board size
+    bne $t3, $zero, return_one
+    
+    move    $v0, $zero
+    j   exit
+
+
+#
+#   Routine that takes the index and the size and checks if 
+#   the cell has a down space
+#           (index + size) / size != size? 1 : 0
+#               1: (down space present)  
+#               0: (down space not there)              
+#   $a0: current index
+#
+down_checker:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    la  $t0, board_size
+    lb  $s0, 0($t0)
+    move    $s1, $a0            # index on the board    
+
+    add $t3, $s1, $s0           # index + size
+    div $t3, $t3, $s0           # (index + size) / size
+    bne $t3, $s0, return_one    # (index + size) / size != size?
+    
+    move    $v0, $zero
+    j   exit
+
+
+#
+#   Routine that takes the index and the size and checks if 
+#   the cell has a up space
+#           index - size < 0? 0 : 1
+#               0: (up space not there)
+#               1: (up space present)  
+#   $a0: current index
+#
+up_checker:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    la  $t0, board_size
+    lb  $s0, 0($t0)
+    move    $s1, $a0            # index on the board
+    
+    sub $t3, $s1, $s0           # index - size
+    slt $t3, $t3, $zero         # (index - size) < 0?
+    beq $t3, $zero, return_one
+        
+    move    $v0, $zero
+    j   exit
+
+
+#
+#   Routine the takes the index and the size and checks if
+#   the cell has a right space
+#           (index + 1) % size != 0? 1 : 0
+#               1: (right space present)  
+#               0: (right space not there)
+#   $a0: current index
+#
+right_checker:
+    addi    $sp, $sp,-FRAMESIZE_40
+    sw      $ra, -4+FRAMESIZE_40($sp)
+    sw      $s7, -8+FRAMESIZE_40($sp)        
+    sw      $s6, -12+FRAMESIZE_40($sp)
+    sw      $s5, -16+FRAMESIZE_40($sp)
+    sw      $s4, -20+FRAMESIZE_40($sp)
+    sw      $s3, -24+FRAMESIZE_40($sp)
+    sw      $s2, -28+FRAMESIZE_40($sp)
+    sw      $s1, -32+FRAMESIZE_40($sp)
+    sw      $s0, -36+FRAMESIZE_40($sp)
+
+    la  $t0, board_size
+    lb  $s0, 0($t0)
+    move    $s1, $a0            # index on the board
+    
+    addi    $t3, $s1, 1         # index + 1
+    rem $t3, $t3, $s0           # (index + 1) % size
+    bne $t3, $zero, return_one
+        
+    move    $v0, $zero
+    j   exit
+
+    
+return_one:
+    li  $v0, 1
+    j   exit
+
 
 #
 #   Routine that gets all the tree positions in the official grid
@@ -278,6 +509,7 @@ continue_loop_get_tree_positions:
 	addi	$t0, $t0, 1     # i++
 	addi	$s1, $s1, 1     # next position for the grid
 	j	loop_get_tree_positions
+
 
 #
 #   Loads back all the registers that were being used currently so that the
