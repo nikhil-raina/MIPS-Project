@@ -233,6 +233,10 @@ store_input_in_grid:
 
 
 done_read_inputs:
+    li  $v0, PRINT_STRING
+    la  $a0, initial_puzzle_heading
+    syscall
+
 	move    $a0, $s0
 	jal display_board
 
@@ -245,6 +249,12 @@ done_read_inputs:
     jal solve
 
     beq $v0, $zero, impossible_message_error
+
+    # have the final things prompt here 
+
+    li  $v0, PRINT_STRING
+    la  $a0, final_puzzle_heading
+    syscall
 
     la  $t0, board_size
     lb  $a0, 0($t0)             # gets the size of the board
@@ -278,6 +288,8 @@ check_neighbors:
     la  $s0, grid           # starting addr of the grid
     move    $s1, $a0        # the current position of the cell in check
     li  $s2, 65             # ASCII (A) -> tent
+    la  $s3, board_size     # gets the size of the board
+    lb  $s3, 0($s3)
 
 start_check:
     # checks if the pos has a left value
@@ -296,16 +308,22 @@ start_check:
 
     move    $t1, $s1
     addi    $t1, $t1, 1     # right position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
     
     move    $t1, $s1
-    add $t1, $t1, $s1       # down position
-    lb  $t2, 0($t1)         # getting the value
+    add $t1, $t1, $s3       # down position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     addi    $t1, $t1, 1     # down right corner position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     j   no_tent_present
@@ -313,21 +331,27 @@ start_check:
     
 up_present:
     move    $t1, $s1
-    sub $t1, $t1, $s1       # up position
-    lb  $t2, 0($t1)         # getting the value
+    sub $t1, $t1, $s3       # up position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     # checks if the pos has a right value when there is up
     
     # Since there is no left, there is definitely a right value
     move    $t1, $s1
-    addi    $t1, $t1, 1        # right position
-    lb  $t2, 0($t1)         # getting the value
+    addi    $t1, $t1, 1     # right position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     move    $t1, $s1
-    sub $t1, $t1, $s1       # right up corner position
-    lb  $t2, 0($t1)         # getting the value
+    sub $t1, $t1, $s3       # right up corner position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     # checks if the pos has a down value when there is up and right 
@@ -342,13 +366,17 @@ up_present:
 
 right_up_down_present:
     move    $t1, $s1
-    add $t1, $t1, $s1       # down position
-    lb  $t2, 0($t1)         # getting the value
+    add $t1, $t1, $s3       # down position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     move    $t1, $s1
     addi    $t1, $t1, 1     # right down corner position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     j   no_tent_present
@@ -357,7 +385,9 @@ right_up_down_present:
 left_present:
     move    $t1, $s1
     addi    $t1, $t1, -1    # left position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     # checks if the pos has an up value when left value present
@@ -370,12 +400,16 @@ left_present:
 
     # if there is no up value, there is definitely a down value
     move    $t1, $s1
-    add $t1, $t1, $s1       # down position
-    lb  $t2, 0($t1)         # getting the value
+    add $t1, $t1, $s3       # down position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     addi    $t1, $t1, -1    # left down corner position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
     
     # checks if the pos has a right value when there is down and left
@@ -391,11 +425,15 @@ left_present:
 right_down_left_present:
     move    $t1, $s1
     addi    $t1, $t1, 1     # right position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
     
-    add $t1, $t1, $s1       # right down corner position
-    lb  $t2, 0($t1)         # getting the value
+    add $t1, $t1, $s3       # right down corner position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
     
     j   no_tent_present
@@ -403,12 +441,16 @@ right_down_left_present:
 
 up_left_present:
     move    $t1, $s1
-    sub $t1, $t1, $s1       # up position
-    lb  $t2, 0($t1)         # getting the value
+    sub $t1, $t1, $s3       # up position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
     
     addi    $t1, $t1, -1    # left up corner position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
     
 
@@ -429,12 +471,16 @@ up_left_present:
 
 down_up_left_present:
     move    $t1, $s1
-    add $t1, $t1, $s1       # down position
-    lb  $t2, 0($t1)         # getting the value
+    add $t1, $t1, $s3       # down position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     addi    $t1, $t1, -1    # left down corner position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     # no down value present when up and left present
@@ -444,11 +490,15 @@ down_up_left_present:
 right_up_left_present:
     move    $t1, $s1
     addi    $t1, $t1, 1     # right position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
     
-    sub $t1, $t1, $s1       # right up corner position
-    lb  $t2, 0($t1)         # getting the value
+    sub $t1, $t1, $s3       # right up corner position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
 
@@ -464,16 +514,22 @@ right_up_left_present:
 
 down_right_up_left_present:
     move    $t1, $s1
-    add $t1, $t1, $s1       # down position
-    lb  $t2, 0($t1)         # getting the value
+    add $t1, $t1, $s3       # down position
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     addi    $t1, $t1, -1    # left down corner position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     addi    $t1, $t1, 2     # right down corner position
-    lb  $t2, 0($t1)         # getting the value
+    la  $t4, grid           # load the addr of the grid
+    add $t4, $t1, $t4       # get the position on the board
+    lb  $t2, 0($t4)         # getting the value
     beq $t2, $s2, tent_present
 
     j   no_tent_present    
@@ -503,7 +559,7 @@ done_check_neighbors:
 #   been solved otherwise a 0. This will then make the board go through added
 #   recursive calls till all the future cases have been checked.
 #   
-#   $a0:    board size
+#   $a0:    addr of tree list
 #   
 #   return: 0 -> no result for current configuration
 #           1 -> board solved
@@ -520,28 +576,399 @@ solve:
     sw      $s1, -32+FRAMESIZE_40($sp)
     sw      $s0, -36+FRAMESIZE_40($sp)
 
-    la  $s0, board_size         # board size
     move    $s1, $a0            # starting addr for the tree_list
                                 # this will allow me to not go about tracing
-                                # back the memory addr for the tree_list
-    
-    la  $s2, grid               # starting addr for the grid
-    li  $t0, 0                  # counter for tree_list
+                                # back the memory addr for the tree_list    
     li  $t9, -1                 # limit for the tree_list
-    li  $t2, 0                  # return value for checks
-
 
 loop_solve:
-    beq $t0, $t9, done_solve
-    lb  $t1, 0($s1)             # value (position) of the tree_list
+    lb  $s3, 0($s1)             # position of the tree_list
+    beq $s3, $t9, done_solve
     
 
+check_left_exists:
+    # check if left pos exist
+    move    $a0, $s3
+    jal left_checker
+    bne $v0, $zero, left_exists
+    lb  $s3, 0($s1)             # position of the tree_list
+    j   check_up_exists_true
+
+
+check_up_exists:
+    # check if up pos exist
+    addi    $s3, $s3, 1
+
+check_up_exists_true:
+    move    $a0, $s3
+    jal up_checker
+    bne $v0, $zero, up_exists
+    lb  $s3, 0($s1)             # position of the tree_list
+    j   check_right_exists_true
+
+
+check_right_exists:
+    # check if right pos exist
+    la  $t0, board_size
+    lb  $t0, 0($t0)
+    add $s3, $s3, $t0
+
+check_right_exists_true:
+    move    $a0, $s3
+    jal right_checker
+    bne $v0, $zero, right_exists
+    lb  $s3, 0($s1)             # position of the tree_list
+    j   check_down_exists_true
+
+
+check_down_exists:
+    # check if down pos exist
+    addi    $s3, $s3, -1
+
+check_down_exists_true:
+    move    $a0, $s3
+    jal down_checker
+    bne $v0, $zero, down_exists
+
+
+no_tent_creation:    
+    li  $v0, 0
+    j   exit
+
+
+left_exists:
+    # s3 -> position I will be using
+    
+    la  $s2, grid                   # starting addr for the grid
+    add $s2, $s2, $s3               # get the tree position on the grid
+    addi    $s3, $s3, -1            # goes to left position
+    addi    $s2, $s2, -1            # goes to left position of the grid
+    lb  $t0, 0($s2)                 # loads the left position from the grid
+    
+    li  $t1, 84                     # ASCII (T) -> tree
+    beq $t0, $t1, check_up_exists   # t0 == tree?
+    li  $t1, 65                     # ASCII (A) -> tent  
+    beq $t0, $t1, check_up_exists   # t0 == tent?
+
+    move    $a0, $s3
+    jal check_neighbors
+
+    bne $v0, $zero, check_up_exists  # go to another tree position
+    
+    # check if the tent can be added 
+    # by looking at the row and column values
+    la  $t0, row_sums_value         # row values
+    la  $t1, column_sums_value      # column values
+    la  $s0, board_size             # board size
+    lb  $s0, 0($s0)                 
+    
+    rem $t2, $s3, $s0               # pos % board_size = col number
+    div $t3, $s3, $s0               # pos / board_size = row number
+
+    add $s6, $t0, $t3               # to get the required column addr
+    add $s7, $t1, $t2               # to get the required row addr
+
+    lb  $t0, 0($s6)                 # the value of the required row
+    lb  $t1, 0($s7)                 # the value of the required column
+
+    slt $t4, $zero, $t0             # 0 < col? 1 : 0
+    beq $t4, $zero, check_up_exists # col == 0 -> go to the next side for the
+                                    # tree
+    
+    slt $t4, $zero, $t1             # 0 < row? 1 : 0
+    beq $t4, $zero, check_up_exists # row == 0 -> go to the next side for the
+                                    # tree
+
+    addi    $t0, $t0, -1            #   col--
+    addi    $t1, $t1, -1            #   row--
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    move    $s4, $t0                # save col
+    move    $s5, $t1                # save row
+    li  $t1, 65                     # ASCII (A) -> tent  
+    sb  $t1, 0($s2)                 # store a tent at the current position
+    
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+    addi    $a0, $s1, 1             # next tree position 
+    jal solve 
+
+    bne $v0, $zero, done_solve
+
+    # changing back to the previous board configuration
+    move    $t0, $s4                # load col
+    move    $t1, $s5                # load row
+    addi    $t0, $t0, 1             #   col++
+    addi    $t1, $t1, 1             #   row++
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    li  $t0, 46                     # ASCII (.)
+    sb  $t0, 0($s2)                 # store a tent at the current position
+   
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+    move    $a0, $s1             # previous tree position 
+    j   check_up_exists
+
+
+up_exists:
+    # s3 -> position I will be using
+    
+    la  $s2, grid                   # starting addr for the grid
+    add $s2, $s2, $s3               # get the tree position on the grid
+    la  $t0, board_size
+    lb  $t0, 0($t0)                 # got the board size for position change
+    sub $s2, $s2, $t0               # goes up 1 position on the grid
+    sub $s3, $s3, $t0               # goes up 1 position
+    lb  $t0, 0($s2)                 # loads the up position from the grid
+    
+    li  $t1, 84                 # ASCII (T) -> tree
+    beq $t0, $t1, check_right_exists   # t0 == tree?
+    li  $t1, 65                 # ASCII (A) -> tent  
+    beq $t0, $t1, check_right_exists   # t0 == tent?
+    
+    move    $a0, $s3
+    jal check_neighbors
+
+    bne $v0, $zero, check_right_exists  # go to another tree position
+    
+    # check if the tent can be added 
+    # by looking at the row and column values
+    la  $t0, row_sums_value         # row values
+    la  $t1, column_sums_value      # column values
+    la  $s0, board_size             # board size
+    lb  $s0, 0($s0)                 
+    
+    rem $t2, $s3, $s0               # pos % board_size = col number
+    div $t3, $s3, $s0               # pos / board_size = row number
+
+    add $s6, $t0, $t3               # to get the required column addr
+    add $s7, $t1, $t2               # to get the required row addr
+
+    lb  $t0, 0($s6)                 # the value of the required row
+    lb  $t1, 0($s7)                 # the value of the required column
+
+    slt $t4, $zero, $t0             # 0 < col? 1 : 0
+    beq $t4, $zero, check_right_exists  # col == 0 -> go to the next 
+                                        # side for the tree
+    
+    slt $t4, $zero, $t1             # 0 < row? 1 : 0
+    beq $t4, $zero, check_right_exists  # row == 0 -> go to the next 
+                                        # side for the tree
+
+    addi    $t0, $t0, -1            #   col--
+    addi    $t1, $t1, -1            #   row--
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    move    $s4, $t0                # save col
+    move    $s5, $t1                # save row
+    li  $t1, 65                     # ASCII (A) -> tent  
+    sb  $t1, 0($s2)                 # store a tent at the current position
+
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+    addi    $a0, $s1, 1             # next tree position 
+    jal solve 
+
+    bne $v0, $zero, done_solve
+
+    # changing back to the previous board configuration
+    move    $t0, $s4                # load col
+    move    $t1, $s5                # load row
+    addi    $t0, $t0, 1             #   col++
+    addi    $t1, $t1, 1             #   row++
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    li  $t0, 46                     # ASCII (.)
+    sb  $t0, 0($s2)                 # store a tent at the current position
+    
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+    move    $a0, $s1            # previous tree position 
+    j   check_right_exists
+
+
+right_exists:
+    # s3 -> position I will be using
+    
+    la  $s2, grid                   # starting addr for the grid
+    add $s2, $s2, $s3               # get the tree position on the grid
+    addi    $s3, $s3, 1             # goes to the right position
+    addi    $s2, $s2, 1             # goes to right position on the grid
+    lb  $t0, 0($s2)                 # loads the left position from the grid
+    li  $t1, 84                     # ASCII (T) -> tree
+    beq $t0, $t1, check_down_exists # t0 == tree?
+    li  $t1, 65                     # ASCII (A) -> tent  
+    beq $t0, $t1, check_down_exists # t0 == tent?
+    
+    move    $a0, $s3
+    jal check_neighbors
+
+    bne $v0, $zero, check_down_exists  # go to another tree position
+    
+    # check if the tent can be added 
+    # by looking at the row and column values
+    la  $t0, row_sums_value         # row values
+    la  $t1, column_sums_value      # column values
+    la  $s0, board_size             # board size
+    lb  $s0, 0($s0)                 
+    
+    rem $t2, $s3, $s0               # pos % board_size = col number
+    div $t3, $s3, $s0               # pos / board_size = row number
+
+    add $s6, $t0, $t3               # to get the required column addr
+    add $s7, $t1, $t2               # to get the required row addr
+
+    lb  $t0, 0($s6)                 # the value of the required row
+    lb  $t1, 0($s7)                 # the value of the required column
+
+    slt $t4, $zero, $t0             # 0 < col? 1 : 0
+    beq $t4, $zero, check_down_exists   # col == 0 -> go to the next 
+                                        # side for the tree
+    
+    slt $t4, $zero, $t1             # 0 < row? 1 : 0
+    beq $t4, $zero, check_down_exists   # row == 0 -> go to the next 
+                                        # side for the tree
+
+    addi    $t0, $t0, -1            #   col--
+    addi    $t1, $t1, -1            #   row--
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    move    $s4, $t0                # save col
+    move    $s5, $t1                # save row
+    li  $t1, 65                     # ASCII (A) -> tent  
+    sb  $t1, 0($s2)                 # store a tent at the current position
+
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+    addi    $a0, $s1, 1             # next tree position 
+    jal solve 
+
+    bne $v0, $zero, done_solve
+
+    # changing back to the previous board configuration
+    move    $t0, $s4                # load col
+    move    $t1, $s5                # load row
+    addi    $t0, $t0, 1             #   col++
+    addi    $t1, $t1, 1             #   row++
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    li  $t0, 46                     # ASCII (.)
+    sb  $t0, 0($s2)                 # store a tent at the current position
+    
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+
+    move    $a0, $s1            # previous tree position 
+    j   check_down_exists
+
+
+down_exists:
+    # s3 -> position I will be using
+    
+    la  $s2, grid                   # starting addr for the grid
+    add $s2, $s2, $s3               # get the tree position on the grid
+    la  $t0, board_size
+    lb  $t0, 0($t0)                 # got the board size for position change
+    add $s2, $s2, $t0               # goes down 1 position on the grid
+    add $s3, $s3, $t0               # goes down 1 position
+    lb  $t0, 0($s2)                 # loads the down position from the grid
+    li  $t1, 84                     # ASCII (T) -> tree
+    beq $t0, $t1, no_tent_creation  # t0 == tree?
+    li  $t1, 65                     # ASCII (A) -> tent  
+    beq $t0, $t1, no_tent_creation  # t0 == tent?
+
+    move    $a0, $s3
+    jal check_neighbors
+
+    bne $v0, $zero, no_tent_creation  # go to another tree position
+    
+    # check if the tent can be added 
+    # by looking at the row and column values
+    la  $t0, row_sums_value         # row values
+    la  $t1, column_sums_value      # column values
+    la  $s0, board_size             # board size
+    lb  $s0, 0($s0)                 
+    
+    rem $t2, $s3, $s0               # pos % board_size = col number
+    div $t3, $s3, $s0               # pos / board_size = row number
+
+    add $s6, $t0, $t3               # to get the required column addr
+    add $s7, $t1, $t2               # to get the required row addr
+
+    lb  $t0, 0($s6)                 # the value of the required row
+    lb  $t1, 0($s7)                 # the value of the required column
+
+    slt $t4, $zero, $t0             # 0 < col? 1 : 0
+    beq $t4, $zero, no_tent_creation    # col == 0 -> go to the next 
+                                        # side for the tree
+    
+    slt $t4, $zero, $t1             # 0 < row? 1 : 0
+    beq $t4, $zero, no_tent_creation    # row == 0 -> go to the next 
+                                        # side for the tree
+
+    addi    $t0, $t0, -1            #   col--
+    addi    $t1, $t1, -1            #   row--
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    move    $s4, $t0                # save col
+    move    $s5, $t1                # save row
+    li  $t1, 65                     # ASCII (A) -> tent  
+    sb  $t1, 0($s2)                 # store a tent at the current position
+
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+    addi    $a0, $s1, 1             # next tree position 
+    jal solve 
+
+    bne $v0, $zero, done_solve
+
+    # changing back to the previous board configuration
+    move    $t0, $s4                # load col
+    move    $t1, $s5                # load row
+    addi    $t0, $t0, 1             #   col++
+    addi    $t1, $t1, 1             #   row++
+    sb  $t0, 0($s6)                 # store the updated value of that col
+    sb  $t1, 0($s7)                 # store the updated value of that row 
+    li  $t0, 46                     # ASCII (.)
+    sb  $t0, 0($s2)                 # store a tent at the current position
+    
+##
+    la  $t0, board_size
+    lb  $a0, 0($t0)             # gets the size of the board
+    jal display_board
+##
+
+    move    $a0, $s1            # previous tree position 
+    j   no_tent_creation
 
 #
 #   Loads back all the registers that were being used currently so that the
 #   previous registers are preserved and can be used.
 #
 done_solve:
+    li  $v0, 1
     j   exit
 
 
@@ -631,10 +1058,14 @@ up_checker:
     la  $t0, board_size
     lb  $s0, 0($t0)
     move    $s1, $a0            # index on the board
-    
+    li  $s2, 1
+
     sub $t3, $s1, $s0           # index - size
-    slt $t3, $t3, $zero         # (index - size) < 0?
-    beq $t3, $zero, return_one
+    sra $t3, $t3, 31            # shifting 31 bits to get the sign bit -> 0, 1
+                                # 0 = +ve number
+                                # -1 = -ve number
+    # slt $t3, $t3, $zero         # (index - size) < 0?
+    beq $t3, $zero, return_one    # t3 != 0? 1 : 0
         
     move    $v0, $zero
     j   exit
@@ -781,10 +1212,6 @@ display_board:
 	la	$s2, row_sums_value		# addr of sum of rows
 	la	$s3, column_sums_value	# addr of sum of columns
 	li	$t1, 0					# COLUMN counter
-
-	li  $v0, PRINT_STRING
-    la  $a0, initial_puzzle_heading
-    syscall
 
 	li  $v0, PRINT_STRING
     la  $a0, newLine
@@ -956,14 +1383,6 @@ done_display_board:
     la  $a0, newLine
     syscall
 	
-	li  $v0, PRINT_STRING
-    la  $a0, newLine
-    syscall
-
-	li  $v0, PRINT_STRING
-    la  $a0, final_puzzle_heading
-    syscall
-
 	li  $v0, PRINT_STRING
     la  $a0, newLine
     syscall
