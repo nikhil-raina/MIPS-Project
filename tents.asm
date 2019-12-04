@@ -41,7 +41,13 @@ tree_list:
 row_sums_value:             # to store the row sums
     .space  50
 
+row_sums_value_copy:        # to store the row sums copy
+    .space  50
+
 column_sums_value:          # to store the row sums
+    .space  50
+
+column_sums_value_copy:          # to store the row sums
     .space  50
 
 board_input:
@@ -173,6 +179,7 @@ read_input:
     la  $a0, row_sums_value
     move    $a1, $s0            # s0 = BOARD SIZE
 
+    la  $a2, row_sums_value_copy
     jal store_number_values     # calls the function to store the real values
     beq $v0, $zero, done_main
    
@@ -190,6 +197,7 @@ read_input:
     la  $a0, column_sums_value
     move    $a1, $s0            # s0 = BOARD SIZE
 
+    la  $a2, column_sums_value_copy
     jal store_number_values     # calls the function to store the real values
     beq $v0, $zero, done_main
 
@@ -253,12 +261,20 @@ done_read_inputs:
     # have the final things prompt here 
 
     li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+    li  $v0, PRINT_STRING
     la  $a0, final_puzzle_heading
     syscall
 
     la  $t0, board_size
     lb  $a0, 0($t0)             # gets the size of the board
     jal display_board
+
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
 
     j   done_main
 
@@ -688,11 +704,6 @@ left_exists:
     li  $t1, 65                     # ASCII (A) -> tent  
     sb  $t1, 0($s2)                 # store a tent at the current position
     
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
     addi    $a0, $s1, 1             # next tree position 
     jal solve 
 
@@ -708,11 +719,6 @@ left_exists:
     li  $t0, 46                     # ASCII (.)
     sb  $t0, 0($s2)                 # store a tent at the current position
    
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
     move    $a0, $s1             # previous tree position 
     j   check_up_exists
 
@@ -771,11 +777,6 @@ up_exists:
     li  $t1, 65                     # ASCII (A) -> tent  
     sb  $t1, 0($s2)                 # store a tent at the current position
 
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
     addi    $a0, $s1, 1             # next tree position 
     jal solve 
 
@@ -791,11 +792,6 @@ up_exists:
     li  $t0, 46                     # ASCII (.)
     sb  $t0, 0($s2)                 # store a tent at the current position
     
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
     move    $a0, $s1            # previous tree position 
     j   check_right_exists
 
@@ -851,11 +847,6 @@ right_exists:
     li  $t1, 65                     # ASCII (A) -> tent  
     sb  $t1, 0($s2)                 # store a tent at the current position
 
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
     addi    $a0, $s1, 1             # next tree position 
     jal solve 
 
@@ -871,11 +862,6 @@ right_exists:
     li  $t0, 46                     # ASCII (.)
     sb  $t0, 0($s2)                 # store a tent at the current position
     
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
 
     move    $a0, $s1            # previous tree position 
     j   check_down_exists
@@ -934,11 +920,6 @@ down_exists:
     li  $t1, 65                     # ASCII (A) -> tent  
     sb  $t1, 0($s2)                 # store a tent at the current position
 
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
     addi    $a0, $s1, 1             # next tree position 
     jal solve 
 
@@ -954,11 +935,6 @@ down_exists:
     li  $t0, 46                     # ASCII (.)
     sb  $t0, 0($s2)                 # store a tent at the current position
     
-##
-    la  $t0, board_size
-    lb  $a0, 0($t0)             # gets the size of the board
-    jal display_board
-##
 
     move    $a0, $s1            # previous tree position 
     j   no_tent_creation
@@ -1207,11 +1183,11 @@ display_board:
     sw      $s1, -32+FRAMESIZE_40($sp)
     sw      $s0, -36+FRAMESIZE_40($sp)
 
-	move $s0, $a0				# board size
-	la	$s1, grid				# addr of grid
-	la	$s2, row_sums_value		# addr of sum of rows
-	la	$s3, column_sums_value	# addr of sum of columns
-	li	$t1, 0					# COLUMN counter
+	move $s0, $a0				        # board size
+	la	$s1, grid				        # addr of grid
+	la	$s2, row_sums_value_copy		# addr of sum of rows
+	la	$s3, column_sums_value_copy	    # addr of sum of columns
+	li	$t1, 0					        # COLUMN counter
 
 	li  $v0, PRINT_STRING
     la  $a0, newLine
@@ -1354,19 +1330,27 @@ display_board_last:
 
 	li	$t1, 0
 
+    beq	$t1, $s0, done_display_board
+	lb	$t2, 0($s3)				# sum of columns current value	
+
+    li  $v0, PRINT_INT
+    move	$a0, $t2
+    syscall
+
+	addi	$s3, $s3, 1			# next sum of columns value
+	addi	$t1, $t1, 1			# counter ++
 
 loop_vertical_values:
 	beq	$t1, $s0, done_display_board
 	lb	$t2, 0($s3)				# sum of columns current value	
 
-	li  $v0, PRINT_INT
-    move	$a0, $t2
-    syscall
-
 	li  $v0, PRINT_STRING
     la  $a0, space
     syscall
 
+	li  $v0, PRINT_INT
+    move	$a0, $t2
+    syscall
 
 	addi	$s3, $s3, 1			# next sum of columns value
 	addi	$t1, $t1, 1			# counter ++
@@ -1379,10 +1363,6 @@ loop_vertical_values:
 #   previous registers are preserved and can be used.
 #
 done_display_board:
-	li  $v0, PRINT_STRING
-    la  $a0, newLine
-    syscall
-	
 	li  $v0, PRINT_STRING
     la  $a0, newLine
     syscall
@@ -1405,6 +1385,7 @@ done_display_board:
 #   
 #   $a0:    contains the number list in ascii
 #   $a1:    board size
+#   $a2:    contains the copy addr
 #
 store_number_values:
     addi    $sp, $sp,-FRAMESIZE_40
@@ -1420,6 +1401,7 @@ store_number_values:
 
     move    $s0, $a0        # input number list is in s0
     move    $s1, $a1        # board size
+    move    $s3, $a2        # copy addr
     li  $t0, 48             # stores the value of 0. 
                             # subtracting the value with 0 will give me the
                             # number to do math with.
@@ -1435,6 +1417,8 @@ loop_storing_numbers:
     sub $s2, $s2, $t0       # x - 48 = number -> s1
     sb  $s2, 0($s0)         # swapped the ascii value with the original 
                             # number
+    sb  $s2, 0($s3)         # adding the copy addr
+    addi    $s3, $s3, 1     # next copy position
     addi    $s0, $s0, 1     # next ascii value
     addi    $t9, $t9, 1     # adds 1 to find the length of the string
     j   loop_storing_numbers
@@ -1442,6 +1426,7 @@ loop_storing_numbers:
 
 good_to_go_storing_numbers:
     sb  $zero, 0($s0)
+    sb  $zero, 0($s3)
     bne $t9, $s1, sum_value_error   # board size == calculated board size?
     li  $t1, 1
     add $t9, $t1, $t9               #   (n + 1)
@@ -1488,50 +1473,6 @@ done_store_number_values:
 
 exit:
     lw      $ra, -4+FRAMESIZE_40($sp)
-    lw      $s7, -8+FRAMESIZE_40($sp)
-    lw      $s6, -12+FRAMESIZE_40($sp)
-    lw      $s5, -16+FRAMESIZE_40($sp)
-    lw      $s4, -20+FRAMESIZE_40($sp)
-    lw      $s3, -24+FRAMESIZE_40($sp)
-    lw      $s2, -28+FRAMESIZE_40($sp)
-    lw      $s1, -32+FRAMESIZE_40($sp)
-    lw      $s0, -36+FRAMESIZE_40($sp)
-    addi    $sp, $sp, FRAMESIZE_40
-	jr	$ra
-
-
-#
-#	Routine to get the specific index from the grid
-#	$a0: row value
-#	$a1: col value
-#	$a2: size of board
-#
-#		return: The required value from the grid.
-#
-get_index:
-	addi    $sp, $sp,-FRAMESIZE_40
-    sw      $ra, -4+FRAMESIZE_40($sp)
-    sw      $s7, -8+FRAMESIZE_40($sp)        
-    sw      $s6, -12+FRAMESIZE_40($sp)
-    sw      $s5, -16+FRAMESIZE_40($sp)
-    sw      $s4, -20+FRAMESIZE_40($sp)
-    sw      $s3, -24+FRAMESIZE_40($sp)
-    sw      $s2, -28+FRAMESIZE_40($sp)
-    sw      $s1, -32+FRAMESIZE_40($sp)
-    sw      $s0, -36+FRAMESIZE_40($sp)
-
-	move	$s0, $a0				# row value
-	move	$s1, $a1				# col value
-	move	$s2, $a2				# board size
-	la	$t0, grid
-
-	mul	$t1, $s0, $s2				# row * board size
-	add	$t1, $s1, $t1				# (row * board size) + column
-	add	$t0, $t0, $t1
-
-	lb	$v0, 0($t0)					# return required value from grid.
-
-	lw      $ra, -4+FRAMESIZE_40($sp)
     lw      $s7, -8+FRAMESIZE_40($sp)
     lw      $s6, -12+FRAMESIZE_40($sp)
     lw      $s5, -16+FRAMESIZE_40($sp)
@@ -1623,7 +1564,15 @@ bound_error:
 #
 impossible_message_error:
     li  $v0, PRINT_STRING
+    la  $a0, newLine
+    syscall
+
+    li  $v0, PRINT_STRING
     la  $a0, err_impossible_message
+    syscall
+
+    li  $v0, PRINT_STRING
+    la  $a0, newLine
     syscall
 
     j   done_main
